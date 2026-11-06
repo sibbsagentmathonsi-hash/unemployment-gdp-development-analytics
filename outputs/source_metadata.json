@@ -1,0 +1,38 @@
+{
+  "retrieved_at_utc": "2026-11-06T17:35:35.210625+00:00",
+  "start_year": 2000,
+  "end_year": 2025,
+  "countries": {
+    "ZAF": "South Africa",
+    "BWA": "Botswana",
+    "NAM": "Namibia",
+    "KEN": "Kenya",
+    "BRA": "Brazil"
+  },
+  "indicators": [
+    {
+      "indicator_id": "SL.UEM.TOTL.ZS",
+      "indicator_name": "Unemployment, total (% of labor force, modeled ILO estimate)",
+      "api_url": "https://api.worldbank.org/v2/country/ZAF;BWA;NAM;KEN;BRA/indicator/SL.UEM.TOTL.ZS?format=json&date=2000%3A2025&per_page=1000",
+      "api_last_updated": "2026-10-08",
+      "observations_returned": 130
+    },
+    {
+      "indicator_id": "NY.GDP.MKTP.KD.ZG",
+      "indicator_name": "GDP growth (annual %, constant local currency)",
+      "api_url": "https://api.worldbank.org/v2/country/ZAF;BWA;NAM;KEN;BRA/indicator/NY.GDP.MKTP.KD.ZG?format=json&date=2000%3A2025&per_page=1000",
+      "api_last_updated": "2026-10-08",
+      "observations_returned": 130
+    },
+    {
+      "indicator_id": "NY.GDP.MKTP.KD",
+      "indicator_name": "GDP (constant 2015 US$)",
+      "api_url": "https://api.worldbank.org/v2/country/ZAF;BWA;NAM;KEN;BRA/indicator/NY.GDP.MKTP.KD?format=json&date=2000%3A2025&per_page=1000",
+      "api_last_updated": "2026-10-08",
+      "observations_returned": 130
+    }
+  ],
+  "api_documentation": "https://datahelpdesk.worldbank.org/knowledgebase/articles/889386",
+  "license_reference": "https://datacatalog.worldbank.org/public-licenses#cc-by",
+  "data_rows": 130
+}

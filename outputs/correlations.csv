@@ -1,0 +1,11 @@
+﻿country_code,country,comparison,correlation,paired_years
+ZAF,South Africa,Unemployment vs real GDP growth,-0.39461551623338337,26
+ZAF,South Africa,Unemployment vs real GDP index,0.7589516591007854,26
+BWA,Botswana,Unemployment vs real GDP growth,0.04905978205414007,26
+BWA,Botswana,Unemployment vs real GDP index,0.5450969621164351,26
+NAM,Namibia,Unemployment vs real GDP growth,-0.10091224126756984,26
+NAM,Namibia,Unemployment vs real GDP index,-0.4412801428327983,26
+KEN,Kenya,Unemployment vs real GDP growth,0.06866716146121998,26
+KEN,Kenya,Unemployment vs real GDP index,0.8584846803322267,26
+BRA,Brazil,Unemployment vs real GDP growth,-0.25129102117856367,26
+BRA,Brazil,Unemployment vs real GDP index,-0.3585525328370291,26

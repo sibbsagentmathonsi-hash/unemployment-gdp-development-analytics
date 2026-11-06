@@ -1,0 +1,6 @@
+﻿country_code,country,latest_paired_year,latest_unemployment_pct,latest_real_gdp_growth_pct,unemployment_first_year,unemployment_last_year,unemployment_change_percentage_points,unemployment_change_span_years,unemployment_gdp_growth_correlation,paired_observation_count
+ZAF,South Africa,2025,32.391,1.11462608103956,2000,2025,9.602999999999998,25,-0.39461551623338337,26
+BWA,Botswana,2025,24.477,-0.733898323852287,2000,2025,8.597,25,0.04905978205414007,26
+NAM,Namibia,2025,19.291,1.73018153842335,2000,2025,-1.0090000000000003,25,-0.10091224126756984,26
+KEN,Kenya,2025,5.449,4.63261093844984,2000,2025,2.565,25,0.06866716146121998,26
+BRA,Brazil,2025,5.97,2.2857464902475,2000,2025,-4.919,25,-0.25129102117856367,26
