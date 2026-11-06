@@ -40,6 +40,7 @@ The generated files are written to `outputs/`. Rerunning the script refreshes th
 | `outputs/world_bank_unemployment_gdp_analysis.xlsx` | Excel dashboard, annual data, formulas, country summary, correlations, and methodology |
 | `outputs/ANALYSIS_SUMMARY.md` | Headline observations, South Africa correlation, definitions, and caveats |
 | `outputs/world_bank_annual_data.csv` | Combined country-year indicators and calculated measures |
+| `outputs/missing_values.csv` | Field-by-field register explaining unavailable or undefined values |
 | `outputs/country_summary.csv` | Latest paired values and unemployment span summaries |
 | `outputs/correlations.csv` | Country correlations with the number of paired observations |
 | `outputs/source_metadata.json` | Indicator IDs, API URLs, retrieval date, last-updated dates, and license reference |
@@ -54,7 +55,9 @@ The generated files are written to `outputs/`. Rerunning the script refreshes th
 - **Annual unemployment change:** current year's unemployment rate minus the preceding year's rate, in percentage points.
 - **Correlation:** Pearson correlation for available paired annual observations within each country. The paired observation count is reported for context.
 
-Annual correlation is descriptive; it does not establish causality or account for lagged effects, structural changes, economic shocks, estimation uncertainty, or revisions. Country series can have different coverage and may not be directly comparable as official national headline rates. Missing observations are never treated as zero.
+The first year in each country series has no prior-year comparison; unemployment change and constant-US$ GDP growth are marked `N/A: no prior year` in the annual CSV and workbook. The missing-value register records each cell and reason. Source observations unavailable from the World Bank are labeled `Not reported by World Bank`. These statuses are never treated as zero.
+
+Annual correlation is descriptive; it does not establish causality or account for lagged effects, structural changes, economic shocks, estimation uncertainty, or revisions. Country series can have different coverage and may not be directly comparable as official national headline rates.
 
 ## Sources and license
 

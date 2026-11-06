@@ -229,6 +229,53 @@ def correlation_matrix(data: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def build_missing_values(data: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    source_columns = {
+        "unemployment_rate_pct",
+        "real_gdp_growth_pct",
+        "real_gdp_constant_lcu",
+    }
+    for row in data.itertuples(index=False):
+        country_code = row.country_code
+        year = int(row.year)
+        group = data.loc[data["country_code"].eq(country_code)].sort_values("year")
+        first_year = year == int(group["year"].min())
+        for field in data.columns:
+            if pd.notna(getattr(row, field)):
+                continue
+            if field in source_columns:
+                reason = "Not reported by the World Bank for this country-year."
+                status = "Not reported by World Bank"
+            elif field in {"unemployment_change_pp", "real_gdp_constant_usd_growth_pct"}:
+                reason = (
+                    "No prior year is available for this first observation."
+                    if first_year
+                    else "Current or prior source observation is unavailable."
+                )
+                status = "N/A: no prior year" if first_year else "N/A: source observation unavailable"
+            elif field == "real_gdp_index_2015_100":
+                reason = "The current value or the 2015 baseline is unavailable."
+                status = "N/A: 2015 baseline or source observation unavailable"
+            else:
+                reason = "No value was available for this field and country-year."
+                status = "Not available"
+            rows.append(
+                {
+                    "country_code": country_code,
+                    "country": COUNTRIES[country_code],
+                    "year": year,
+                    "field": field,
+                    "status": status,
+                    "reason": reason,
+                }
+            )
+    return pd.DataFrame(
+        rows,
+        columns=["country_code", "country", "year", "field", "status", "reason"],
+    )
+
+
 def _format_sheet(sheet, table_name: str | None = None) -> None:
     sheet.sheet_view.showGridLines = False
     sheet.freeze_panes = "A2"
@@ -255,12 +302,38 @@ def _format_sheet(sheet, table_name: str | None = None) -> None:
         sheet.add_table(table)
 
 
-def _write_frame(workbook: Workbook, name: str, frame: pd.DataFrame, table_name: str):
+def _write_frame(
+    workbook: Workbook,
+    name: str,
+    frame: pd.DataFrame,
+    table_name: str,
+    missing_values: pd.DataFrame | None = None,
+):
     sheet = workbook.create_sheet(name)
     columns = [str(column) for column in frame.columns]
     sheet.append(columns)
+    missing_labels = {}
+    if missing_values is not None and not missing_values.empty:
+        missing_labels = {
+            (row.country_code, int(row.year), row.field): row.status
+            for row in missing_values.itertuples(index=False)
+        }
     for row in frame.itertuples(index=False, name=None):
-        sheet.append([None if pd.isna(value) else value.item() if isinstance(value, np.generic) else value for value in row])
+        values = []
+        for column, value in zip(columns, row):
+            if pd.isna(value):
+                if name == "Annual Data":
+                    country_code = row[columns.index("country_code")]
+                    year = int(row[columns.index("year")])
+                    value = missing_labels.get(
+                        (country_code, year, column), "Not available"
+                    )
+                else:
+                    value = "Not available"
+            elif isinstance(value, np.generic):
+                value = value.item()
+            values.append(value)
+        sheet.append(values)
     _format_sheet(sheet, table_name)
     for column_cells in sheet.columns:
         heading = str(column_cells[0].value).lower()
@@ -273,7 +346,14 @@ def _write_frame(workbook: Workbook, name: str, frame: pd.DataFrame, table_name:
     return sheet
 
 
-def create_workbook(path: Path, data: pd.DataFrame, country_summary: pd.DataFrame, correlations: pd.DataFrame, sources: list[dict]) -> None:
+def create_workbook(
+    path: Path,
+    data: pd.DataFrame,
+    country_summary: pd.DataFrame,
+    correlations: pd.DataFrame,
+    sources: list[dict],
+    missing_values: pd.DataFrame,
+) -> None:
     workbook = Workbook()
     overview = workbook.active
     overview.title = "Overview"
@@ -306,6 +386,7 @@ def create_workbook(path: Path, data: pd.DataFrame, country_summary: pd.DataFram
         "GDP growth is annual percentage growth in constant local currency. GDP index is real GDP in constant 2015 US dollars, normalized to 2015 = 100.",
         "Correlations describe annual co-movement only. They are not causal estimates, forecasts, or proof that GDP changes cause unemployment changes.",
         "Country observations may end in different years. Always compare the years shown and check missing values before drawing conclusions.",
+        "N/A: no prior year marks the first year in each country series; annual changes and growth cannot be calculated without a preceding observation.",
         "World Bank API data and the workbook can be refreshed by rerunning analytics.py. The API last-updated date is documented in Methodology.",
     ]
     for row, note in enumerate(notes, start=8):
@@ -314,11 +395,14 @@ def create_workbook(path: Path, data: pd.DataFrame, country_summary: pd.DataFram
         overview.cell(row, 1).alignment = Alignment(wrap_text=True, vertical="top")
         overview.row_dimensions[row].height = 32
 
-    annual_sheet = _write_frame(workbook, "Annual Data", data, "AnnualData")
+    annual_sheet = _write_frame(
+        workbook, "Annual Data", data, "AnnualData", missing_values
+    )
     _write_frame(workbook, "Country Summary", country_summary, "CountrySummary")
     _write_frame(workbook, "Correlations", correlations, "Correlations")
     source_frame = pd.DataFrame(sources)
     _write_frame(workbook, "Methodology", source_frame, "SourceMetadata")
+    _write_frame(workbook, "Missing Values", missing_values, "MissingValues")
 
     chart_data = workbook.create_sheet("Chart Data")
     chart_data.append(["Year", *[COUNTRIES[code] for code in COUNTRY_ORDER]])
@@ -344,8 +428,19 @@ def create_workbook(path: Path, data: pd.DataFrame, country_summary: pd.DataFram
         cell.fill = PatternFill("solid", fgColor="17324D")
     for row in range(2, annual_sheet.max_row + 1):
         if row > 2 and annual_sheet.cell(row, 1).value == annual_sheet.cell(row - 1, 1).value:
-            annual_sheet.cell(row, 10, f'=IFERROR(D{row}-D{row - 1},"")')
-            annual_sheet.cell(row, 11, f'=IFERROR(G{row}/G{row - 1}*100-100,"")')
+            annual_sheet.cell(
+                row,
+                10,
+                f'=IF(AND(ISNUMBER(D{row}),ISNUMBER(D{row - 1})),D{row}-D{row - 1},"N/A: source observation unavailable")',
+            )
+            annual_sheet.cell(
+                row,
+                11,
+                f'=IF(AND(ISNUMBER(G{row}),ISNUMBER(G{row - 1}),G{row - 1}<>0),G{row}/G{row - 1}*100-100,"N/A: source observation unavailable")',
+            )
+        else:
+            annual_sheet.cell(row, 10, "N/A: no prior year")
+            annual_sheet.cell(row, 11, "N/A: no prior year")
         annual_sheet.cell(row, 10).number_format = "0.00"
         annual_sheet.cell(row, 11).number_format = "0.00"
     annual_sheet.tables["AnnualData"].ref = f"A1:K{annual_sheet.max_row}"
@@ -480,7 +575,14 @@ def create_charts(data: pd.DataFrame, correlations: pd.DataFrame, chart_dir: Pat
     plt.close(fig)
 
 
-def write_summary(path: Path, data: pd.DataFrame, summary: pd.DataFrame, correlations: pd.DataFrame, sources: list[dict]) -> None:
+def write_summary(
+    path: Path,
+    data: pd.DataFrame,
+    summary: pd.DataFrame,
+    correlations: pd.DataFrame,
+    sources: list[dict],
+    missing_values: pd.DataFrame,
+) -> None:
     def markdown_table(frame: pd.DataFrame) -> str:
         headers = [str(column) for column in frame.columns]
         rows = [[str(value) for value in row] for row in frame.itertuples(index=False, name=None)]
@@ -504,6 +606,9 @@ def write_summary(path: Path, data: pd.DataFrame, summary: pd.DataFrame, correla
         correlations["country_code"].eq("ZAF")
         & correlations["comparison"].eq("Unemployment vs real GDP growth")
     ].iloc[0]
+    no_prior_year_count = int(
+        missing_values["status"].eq("N/A: no prior year").sum()
+    )
     sources_text = "\n".join(
         f"- `{source['indicator_id']}` — {source['indicator_name']}; API last updated: {source['api_last_updated']}."
         for source in sources
@@ -524,6 +629,10 @@ GDP growth is the World Bank annual growth rate in constant local currency. The 
 
 Across {int(sa_corr['paired_years'])} annual paired observations, the Pearson correlation between the modeled unemployment rate and real GDP growth is **{sa_corr['correlation']:.2f}**. This describes co-movement in the selected years; it does not establish that GDP growth causes unemployment changes. Results can be influenced by business-cycle lags, labor-force participation, economic structure, shocks, revisions, and the short annual time series.
 
+## Unavailable values
+
+The annual data contain {no_prior_year_count} derived first-year cells marked `N/A: no prior year`—one unemployment change and one GDP growth value for each country. The `missing_values.csv` register and workbook's **Missing Values** sheet identify each country, year, field, and reason.
+
 ## Source indicators
 
 {sources_text}
@@ -533,7 +642,8 @@ Source: [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledge
 ## Data caveats
 
 - Unemployment is the **modeled ILO estimate**, not a national official estimate or a direct household-survey extract. It is an estimate and may be revised.
-- Country-year series do not necessarily have identical availability. Missing values are retained as missing; each chart and correlation uses available paired observations.
+- The first year in each country's series has no prior-year comparison. The derived unemployment-change and constant-US$ GDP-growth values are labeled `N/A: no prior year`, not left blank or treated as zero. See `missing_values.csv` and the workbook's **Missing Values** sheet for the field-by-field register.
+- Other unavailable source observations are labeled `Not reported by World Bank`; each chart and correlation uses available paired observations.
 - GDP growth in constant local currency is used for annual growth rates; real GDP in constant 2015 US dollars is used only as a normalized comparison series. Current-US-dollar GDP would mix real output changes with exchange-rate and price changes.
 - GDP and unemployment may have timing lags and structural differences. Correlation is descriptive only; no causal claims, significance testing, or prediction is made.
 - The API data are retrieved when the script runs; the accompanying source CSV and metadata record the values used in this published analysis.
@@ -547,11 +657,30 @@ def run_analysis(start_year: int = FIRST_YEAR, end_year: int = LAST_YEAR) -> pd.
     data, sources = fetch_all(start_year, end_year)
     summary = summarize_countries(data)
     correlations = correlation_matrix(data)
+    missing_values = build_missing_values(data)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     CHART_DIR.mkdir(parents=True, exist_ok=True)
-    data.to_csv(OUTPUT_DIR / "world_bank_annual_data.csv", index=False, encoding="utf-8-sig")
+    annual_export = data.copy()
+    annual_export_labels = {
+        (row.country_code, int(row.year), row.field): row.status
+        for row in missing_values.itertuples(index=False)
+    }
+    for field in missing_values["field"].unique():
+        annual_export[field] = annual_export[field].astype(object)
+    for index, row in annual_export.iterrows():
+        for field in annual_export.columns:
+            if pd.isna(row[field]):
+                annual_export.at[index, field] = annual_export_labels.get(
+                    (row["country_code"], int(row["year"]), field), "Not available"
+                )
+    annual_export.to_csv(
+        OUTPUT_DIR / "world_bank_annual_data.csv", index=False, encoding="utf-8-sig"
+    )
     summary.to_csv(OUTPUT_DIR / "country_summary.csv", index=False, encoding="utf-8-sig")
     correlations.to_csv(OUTPUT_DIR / "correlations.csv", index=False, encoding="utf-8-sig")
+    missing_values.to_csv(
+        OUTPUT_DIR / "missing_values.csv", index=False, encoding="utf-8-sig"
+    )
     metadata = {
         "retrieved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
         "start_year": start_year,
@@ -566,8 +695,22 @@ def run_analysis(start_year: int = FIRST_YEAR, end_year: int = LAST_YEAR) -> pd.
         json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     create_charts(data, correlations, CHART_DIR)
-    create_workbook(OUTPUT_DIR / "world_bank_unemployment_gdp_analysis.xlsx", data, summary, correlations, sources)
-    write_summary(OUTPUT_DIR / "ANALYSIS_SUMMARY.md", data, summary, correlations, sources)
+    create_workbook(
+        OUTPUT_DIR / "world_bank_unemployment_gdp_analysis.xlsx",
+        data,
+        summary,
+        correlations,
+        sources,
+        missing_values,
+    )
+    write_summary(
+        OUTPUT_DIR / "ANALYSIS_SUMMARY.md",
+        data,
+        summary,
+        correlations,
+        sources,
+        missing_values,
+    )
     return data
 
 

@@ -20,6 +20,10 @@ GDP growth is the World Bank annual growth rate in constant local currency. The 
 
 Across 26 annual paired observations, the Pearson correlation between the modeled unemployment rate and real GDP growth is **-0.39**. This describes co-movement in the selected years; it does not establish that GDP growth causes unemployment changes. Results can be influenced by business-cycle lags, labor-force participation, economic structure, shocks, revisions, and the short annual time series.
 
+## Unavailable values
+
+The annual data contain 10 derived first-year cells marked `N/A: no prior year`—one unemployment change and one GDP growth value for each country. The `missing_values.csv` register and workbook's **Missing Values** sheet identify each country, year, field, and reason.
+
 ## Source indicators
 
 - `SL.UEM.TOTL.ZS` — Unemployment, total (% of labor force, modeled ILO estimate); API last updated: 2026-10-08.
@@ -31,7 +35,8 @@ Source: [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledge
 ## Data caveats
 
 - Unemployment is the **modeled ILO estimate**, not a national official estimate or a direct household-survey extract. It is an estimate and may be revised.
-- Country-year series do not necessarily have identical availability. Missing values are retained as missing; each chart and correlation uses available paired observations.
+- The first year in each country's series has no prior-year comparison. The derived unemployment-change and constant-US$ GDP-growth values are labeled `N/A: no prior year`, not left blank or treated as zero. See `missing_values.csv` and the workbook's **Missing Values** sheet for the field-by-field register.
+- Other unavailable source observations are labeled `Not reported by World Bank`; each chart and correlation uses available paired observations.
 - GDP growth in constant local currency is used for annual growth rates; real GDP in constant 2015 US dollars is used only as a normalized comparison series. Current-US-dollar GDP would mix real output changes with exchange-rate and price changes.
 - GDP and unemployment may have timing lags and structural differences. Correlation is descriptive only; no causal claims, significance testing, or prediction is made.
 - The API data are retrieved when the script runs; the accompanying source CSV and metadata record the values used in this published analysis.
